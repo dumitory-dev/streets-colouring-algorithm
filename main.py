@@ -1,46 +1,129 @@
-import math
-from typing import List
-import geopandas as gpd
-from matplotlib import pyplot as plt
-from matplotlib.patches import Polygon
-import numpy as np
-from shapely.geometry import mapping
-from itertools import combinations
-import fiona
-from dataclasses import dataclass
-import shapefile as shp  # Requires the pyshp package
-from collections import defaultdict
+"""Main module for running the application."""
 
-PATH_TO_SHP = "./data/roads.shp"
-OUT_DIR = "./out"
+import argparse
+import os
+from itertools import combinations
+
+from matplotlib import pyplot as plt
+from shapely.geometry import Point, shape
+from tqdm import tqdm
+
+from src.utils import (
+    get_circle_intersects,
+    get_intersect_lines_for_point,
+    get_intersect_points,
+    get_lines_from_file,
+    plot_all_lines,
+)
+
+OUT_FILE_NAME = "roads.png"
+
+
+def get_command_line_params():
+    """Returns the command line parameters"""
+
+    parser = argparse.ArgumentParser(description="Streets Colouring Program")
+    parser.add_argument(
+        "-i", "--input", required=True, help="Path to the input shapefile"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="./out",
+        help="Path to the output directory",
+    )
+    parser.add_argument(
+        "-d", "--dpi", default=300, help="Set the out image dpi", type=int
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    shapefile = gpd.read_file(PATH_TO_SHP)
+    params = get_command_line_params()
+    input_path, out_dir, dpi = (
+        params.input,
+        params.output,
+        params.dpi,
+    )
 
-    points = []
-    multiline = shapefile["geometry"]
+    # Check if input file exists
+    if not os.path.isfile(input_path):
+        raise Exception(f"File {input_path} does not exist")
+
+    # create the output directory if it doesn't exist
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    # make out dir with out file name
+    out_file_path = f"{out_dir}/{OUT_FILE_NAME}"
+
     plt.figure()
 
-    lines = {}
+    all_lines = get_lines_from_file(input_path)
 
-    # find intersections and append to points list
-    for line1, line2 in combinations(list(multiline), 2):
-        if line1.intersects(line2):
-            # get all coordinates of line1
-            coords1 = line1.coords.xy
-            coords2 = line2.coords.xy
+    # get the minimum distance for the radius of the circle
+    minimal_distance = min(all_lines, key=lambda x: x.get_length()).get_length()
+    intersect_points = get_intersect_points(all_lines)
 
-            # get all intersections for lines
+    """
+    1. Generate a circle at the intersection of the lines with the radius of the shortest line
+    2. Find the points and lines of intersection of the circle radius
+    3. Sort the points by their distance from each other
+    4. Merge the lines with the longest distance in descending order
+    
+    Note: Since we end up merging all the lines we need,
+    we can even make a new shp file with the streets!
+               
+         #####
+        #  |  #
+        #  |  #
+    ----#--+--#----
+        #  |  #
+        #  |  #
+         #####
+    """
+    for point in tqdm(intersect_points.items()):
+        point = Point(point[0], point[1])
+        circle = point.buffer(minimal_distance)
 
-            points.append(line1.intersection(line2))
+        # Place for optimization,
+        # we do not need to always recalculate the lines for the intersection point this way,
+        # but so far this is the easiest option
+        intersect_lines = get_intersect_lines_for_point(point, all_lines)
+        intersect_circle = []
 
-    for line in list(multiline):
-        x, y = line.coords.xy
-        # find x in points
-        for point in points:
-            if point.geom_type == "Point":
-                if point.x == x[0]:
-                    plt.plot(x, y)
+        for line in intersect_lines:
 
-    plt.savefig(f"{OUT_DIR}/road_with_points1.png", dpi=500)
+            intersect_point = line.get_intersection(shape(circle))
+            intersect_circle_result = get_circle_intersects(line, circle)
+
+            if intersect_circle_result is None:
+                continue
+            (begin, end) = intersect_circle_result
+
+            if begin != point:
+                intersect_circle.append((begin, line))
+            else:
+                intersect_circle.append((end, line))
+
+        # We want to sort the lines by the distance between them.
+        # The lines whose points are at the greatest distance, we will merge
+        sorted_distances = list(
+            map(
+                lambda x: (x[0][1], x[1][1]),
+                sorted(
+                    combinations(intersect_circle, 2),
+                    key=lambda x: x[0][0].distance(x[1][0]),
+                    reverse=True,
+                ),
+            )
+        )
+
+        # We only can connect two lines per iteration
+        for i in range(0, int(len(intersect_circle) / 2)):
+            (first_line, second_line) = sorted_distances[i]
+            first_line.merge_line(second_line, point)
+            all_lines.remove(second_line)
+
+    plot_all_lines(plt, all_lines)
+    plt.savefig(out_file_path, dpi=dpi)

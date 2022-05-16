@@ -72,10 +72,9 @@ def plot_all_lines(plt, lines: list):
     """Plots all lines from a list with random colors."""
     for line in lines:
         line_coordinates = line.coordinates
-        # convert coordinates to xy
+        # convert coordinates to xy arrays
         x_array = [coordinate.x for coordinate in line_coordinates]
         y_array = [coordinate.y for coordinate in line_coordinates]
-        # plot with unqie color
         plt.plot(
             x_array,
             y_array,

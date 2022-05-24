@@ -93,8 +93,6 @@ if __name__ == "__main__":
         intersect_circle = []
 
         for line in intersect_lines:
-
-            intersect_point = line.get_intersection(shape(circle))
             intersect_circle_result = get_circle_intersects(line, circle)
 
             if intersect_circle_result is None:

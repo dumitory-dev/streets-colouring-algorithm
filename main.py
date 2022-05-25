@@ -5,7 +5,7 @@ import os
 from itertools import combinations
 
 from matplotlib import pyplot as plt
-from shapely.geometry import Point, shape
+from shapely.geometry import Point
 from tqdm import tqdm
 
 from src.utils import (

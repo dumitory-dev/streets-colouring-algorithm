@@ -120,6 +120,10 @@ if __name__ == "__main__":
         # We only can connect two lines per iteration
         for i in range(0, int(len(intersect_circle) / 2)):
             (first_line, second_line) = sorted_distances[i]
+
+            if first_line not in all_lines or second_line not in all_lines:
+                continue
+
             first_line.merge_line(second_line, point)
             all_lines.remove(second_line)
 

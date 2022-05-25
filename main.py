@@ -90,7 +90,7 @@ if __name__ == "__main__":
         # we do not need to always recalculate the lines for the intersection point this way,
         # but so far this is the easiest option
         intersect_lines = get_intersect_lines_for_point(point, all_lines)
-        intersect_circle = []
+        intersect_data_circle = []
 
         for line in intersect_lines:
             intersect_circle_result = get_circle_intersects(line, circle)
@@ -100,9 +100,9 @@ if __name__ == "__main__":
             (begin, end) = intersect_circle_result
 
             if begin != point:
-                intersect_circle.append((begin, line))
+                intersect_data_circle.append((begin, line))
             else:
-                intersect_circle.append((end, line))
+                intersect_data_circle.append((end, line))
 
         # We want to sort the lines by the distance between them.
         # The lines whose points are at the greatest distance, we will merge
@@ -110,7 +110,7 @@ if __name__ == "__main__":
             map(
                 lambda x: (x[0][1], x[1][1]),
                 sorted(
-                    combinations(intersect_circle, 2),
+                    combinations(intersect_data_circle, 2),
                     key=lambda x: x[0][0].distance(x[1][0]),
                     reverse=True,
                 ),
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         )
 
         # We only can connect two lines per iteration
-        for i in range(0, int(len(intersect_circle) / 2)):
+        for i in range(0, int(len(intersect_data_circle) / 2)):
             (first_line, second_line) = sorted_distances[i]
 
             if first_line not in all_lines or second_line not in all_lines:

@@ -1,4 +1,6 @@
 # Streets Colouring Algorithm
+
+[![CodeFactor](https://www.codefactor.io/repository/github/dumitory-dev/streets-colouring-algorithm/badge)](https://www.codefactor.io/repository/github/dumitory-dev/streets-colouring-algorithm)
  
 ## Build
 - python3 -m venv .env
